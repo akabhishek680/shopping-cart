@@ -3,57 +3,54 @@ import './App.css';
 import CartList from './components/CartList';
 import Footer from './components/Footer';
 import Navbar from './components/Navbar';
+import db from './firebase';
+import { doc, collection, onSnapshot, updateDoc, deleteDoc  } from 'firebase/firestore';
 
 class App extends React.Component {
 
   constructor() {
     super();
-
     this.state = {
-
-      product: [
-        {
-          type: 'Mobile',
-          model: 'Google pixel',
-          price: '40000',
-          qty: 0,
-          imgSrc : 'https://cdn-icons-png.flaticon.com/512/2586/2586488.png',
-          id: 1
-        },
-        {
-          type: 'Laptop',
-          model: 'Dell',
-          price: '70000',
-          qty: 0,
-          imgSrc : 'https://cdn-icons-png.flaticon.com/512/610/610021.png',
-          id: 2
-        },
-        {
-          type: 'TV',
-          model: 'Sony',
-          price: '120000',
-          qty: 0,
-          imgSrc : 'https://cdn-icons-png.flaticon.com/512/1023/1023572.png',
-          id: 3
-        }
-      ]
+      product : []
     }
+  }
+
+  componentDidMount = () => {
+
+    const collectionReference = collection(db, 'product');
+    onSnapshot(collectionReference, (snapshot) => {
+
+      let productData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      })
+
+      this.setState({
+        product: productData
+      });
+    })
+
   }
 
   increaseQuantity = (productId) => {
 
     let { product } = this.state;
     let index = this.state.product.findIndex(obj => obj.id === productId);
+    
+    try {
 
-    product[index].qty = product[index].qty + 1;
+      const collectionReference = collection(db, 'product');
+      const docReference = doc(collectionReference, productId);
+      updateDoc(docReference, { qty: product[index].qty + 1});
 
-    this.setState(
-      {
-        product: product
-      }
-    )
+    } catch(error){
+
+      console.log('error in increasing quantity', error);
+    }
 
   }
+  
 
   decreaseQuantity = (productId) => {
 
@@ -61,17 +58,33 @@ class App extends React.Component {
     let index = this.state.product.findIndex(obj => obj.id === productId);
 
     if(product[index].qty > 0) {
-      product[index].qty = product[index].qty - 1;
+      
+      try {
+
+        const collectionReference = collection(db, 'product');
+        const docReference = doc(collectionReference, productId);
+        updateDoc(docReference, { qty: product[index].qty - 1});
+
+      } catch(error) {
+
+        console.log('error in decreasing quantity', error);
+      }
     }
     
-    this.setState(
-      {
-        product: product
-      }
-    )
+    
   }
 
   deleteProduct = (productId) => {
+
+    const docRef = doc(db, 'product', productId);
+    deleteDoc(docRef)
+      .then(() => {
+        console.log('product deleted successfully');
+        this.calculateTotalAmount();
+      })
+      .catch((error) => {
+        console.log('error in deleting cart item');
+      })
     
     this.setState((prevState) => {
 
